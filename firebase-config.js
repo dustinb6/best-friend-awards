@@ -1,10 +1,9 @@
-// Paste the firebaseConfig values from Firebase console > Project settings > Your apps.
-// These values are public by design; Firestore security rules protect the data.
+// Firebase web config. These values are public by design; Firestore security rules protect the data.
 window.FIREBASE_CONFIG = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME"
+  apiKey: "AIzaSyASU50mVYG9pE75gkBz-FID5Lde4Kj6Vlk",
+  authDomain: "best-friend-awards.firebaseapp.com",
+  projectId: "best-friend-awards",
+  storageBucket: "best-friend-awards.firebasestorage.app",
+  messagingSenderId: "637829995460",
+  appId: "1:637829995460:web:f66633ac6578d2d974e291"
 };
