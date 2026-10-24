@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function ceremony() { return /databases/$(database)/documents/settings/ceremony; }
+    function hostDoc() { return /databases/$(database)/documents/settings/host; }
+    function isHost() { return signedIn() && exists(hostDoc()) && get(hostDoc()).data.uid == request.auth.uid; }
+    function phaseIs(p) {
+      return (!exists(ceremony()) && p == 'nominate') || (exists(ceremony()) && get(ceremony()).data.phase == p);
+    }
+    function validBallot() {
+      return request.resource.data.keys().hasOnly(['name', 'picks', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.picks is map
+        && request.resource.data.picks.size() <= 30;
+    }
+
+    // The first Google account to press "Host sign in" becomes the host, permanently.
+    match /settings/host {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /settings/ceremony {
+      allow read: if true;
+      allow write: if isHost();
+    }
+
+    // One ballot per device: the document id must be the visitor's own id.
+    match /nominations/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == uid && phaseIs('nominate') && validBallot();
+      allow delete: if isHost();
+    }
+
+    match /votes/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == uid && phaseIs('vote') && validBallot();
+      allow delete: if isHost();
+    }
+  }
+}

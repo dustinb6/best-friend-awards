@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0908">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="The Best Friend Awards">
+<meta property="og:description" content="Submit your nominations for the inaugural Best Friend Awards.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M7 0 L8.6 5.4 L14 7 L8.6 8.6 L7 14 L5.4 8.6 L0 7 L5.4 5.4 Z' fill='%23c9a45c'/%3E%3C/svg%3E">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+</head>
+<body>
+<title>The Best Friend Awards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500;600&display=swap">
+<style>
+/* Layout: black-tie gala in three acts (nominations, final voting, winners) on one page. Centered marquee with engraved caps, then one centered category card per row framed in gold hairlines. Single deliberate black-and-gold look. */
+:root {
+  padding-top: env(safe-area-inset-top, 0px);
+  --bg: #0a0908;
+  --panel: #13110e;
+  --panel-hi: #1a1712;
+  --line: #3a3124;
+  --gold: #c9a45c;
+  --gold-hi: #f1dba4;
+  --gold-lo: #8a6a2f;
+  --gold-wash: rgba(201,164,92,.12);
+  --ink: #f2ece0;
+  --muted: #a39a89;
+  --faint: #6c6455;
+  --ok: #b7d9a8;
+  --warn: #e7a38a;
+  --on-gold: #1b1407;
+  --engraved: "Cinzel", "Trajan Pro", Georgia, serif;
+  --display: "Cormorant Garamond", "Garamond", Georgia, serif;
+  --body: "Jost", "Futura", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% -5%, rgba(201,164,92,.18) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 30% at 50% 100%, rgba(201,164,92,.06) 0%, transparent 70%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 56px 150px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 56px;
+}
+.gold-text {
+  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 55%, var(--gold-lo) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+header { display: grid; gap: 18px; text-align: center; justify-items: center; }
+.edition {
+  font-family: var(--engraved); font-size: 13px; letter-spacing: .32em; text-transform: uppercase; color: var(--gold);
+  padding-left: .32em;
+}
+.rule { display: flex; align-items: center; gap: 14px; width: min(420px, 100%); color: var(--gold); }
+.rule::before, .rule::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }
+.rule::after { background: linear-gradient(90deg, var(--gold), transparent); }
+.rule svg { width: 14px; height: 14px; flex: none; }
+h1 {
+  margin: 0; font-family: var(--engraved); font-weight: 600; text-transform: uppercase;
+  font-size: clamp(38px, 8.4vw, 96px); line-height: 1; letter-spacing: .06em;
+  text-wrap: balance;
+}
+h1 .the { display: block; font-size: .32em; letter-spacing: .5em; padding-left: .5em; margin-bottom: .35em; }
+.lede {
+  margin: 0; max-width: 54ch; font-family: var(--display); font-style: italic; font-size: clamp(19px, 2.4vw, 23px);
+  color: var(--muted); text-wrap: balance;
+}
+
+/* Stage tracker */
+.stages { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.stage {
+  font-family: var(--engraved); font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--faint); padding: 6px 12px; border: 1px solid var(--line);
+}
+.stage.on { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
+.stage.done { color: var(--gold); border-color: var(--gold-lo); }
+
+.notice {
+  border: 1px solid var(--line); background: var(--panel); padding: 14px 18px; color: var(--muted); font-size: 15px;
+  text-align: center;
+}
+.notice strong { color: var(--gold-hi); font-weight: 600; }
+
+/* Host controls (owner only) */
+.host {
+  border: 1px dashed var(--gold-lo); padding: 18px; display: grid; gap: 12px; justify-items: center; text-align: center;
+  width: min(640px, 100%); justify-self: center;
+}
+.host .lbl { color: var(--gold-hi); }
+.host p { margin: 0; color: var(--muted); font-size: 14px; max-width: 50ch; }
+.host-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+.lbl {
+  font-family: var(--engraved); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold);
+}
+input[type="text"] {
+  width: 100%; font: inherit; font-size: max(16px, 1em); color: var(--ink); background: transparent;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 8px 2px;
+  transition: border-color .15s;
+}
+input[type="text"]::placeholder { color: var(--faint); }
+input[type="text"]:focus { outline: none; border-bottom-color: var(--gold); }
+input[type="text"]:focus-visible { outline: 1px solid var(--gold); outline-offset: 3px; }
+input[type="text"]:disabled { opacity: .5; }
+
+.you { display: grid; gap: 6px; width: min(440px, 100%); justify-self: center; text-align: center; }
+#me-name { font-family: var(--display); font-size: 26px; text-align: center; }
+
+.sec-head { display: grid; gap: 10px; justify-items: center; text-align: center; }
+h2 {
+  margin: 0; font-family: var(--engraved); font-weight: 500; text-transform: uppercase;
+  font-size: clamp(22px, 3.6vw, 32px); letter-spacing: .18em; padding-left: .18em; text-wrap: balance;
+}
+.sec-head p { margin: 0; color: var(--muted); font-size: 15px; max-width: 60ch; }
+.act { display: grid; gap: 28px; }
+
+.grid { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 920px; width: 100%; justify-self: center; }
+.card {
+  position: relative; background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+  border: 1px solid var(--line); padding: 30px 28px 28px; display: grid; gap: 18px; justify-items: center; text-align: center;
+  transition: border-color .2s, box-shadow .2s;
+}
+.card::before {
+  content: ""; position: absolute; inset: 6px; border: 1px solid rgba(201,164,92,.14); pointer-events: none;
+}
+.card.filled { border-color: var(--gold-lo); box-shadow: 0 0 0 1px rgba(201,164,92,.25), 0 12px 40px -20px rgba(201,164,92,.45); }
+.card .title { display: grid; gap: 6px; justify-items: center; min-width: 0; max-width: 60ch; }
+.card .cat-no { font-family: var(--engraved); font-size: 11px; letter-spacing: .26em; color: var(--faint); text-transform: uppercase; }
+.card.filled .cat-no { color: var(--gold); }
+.card h3 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 26px; line-height: 1.1; text-wrap: balance; }
+.card .desc { margin: 2px 0 0; font-family: var(--display); font-style: italic; font-size: 17px; line-height: 1.35; color: var(--muted); }
+.field { display: grid; gap: 2px; width: min(380px, 100%); position: relative; }
+.field input { text-align: center; font-size: 18px; }
+
+/* Voting options */
+.options { display: grid; gap: 8px; width: min(400px, 100%); position: relative; }
+.opt {
+  font-family: var(--display); font-size: 21px; font-weight: 600; color: var(--ink); cursor: pointer;
+  background: transparent; border: 1px solid var(--line); padding: 12px 44px; position: relative; text-align: center;
+  transition: border-color .15s, background .15s; min-height: 48px; overflow-wrap: anywhere;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.opt:hover { border-color: var(--gold-lo); }
+.opt:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 2px; }
+.opt[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-wash); color: var(--gold-hi); }
+.opt[aria-pressed="true"]::after {
+  content: ""; position: absolute; right: 16px; top: 50%; width: 8px; height: 14px; margin-top: -9px;
+  border: solid var(--gold-hi); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.opt:disabled { cursor: not-allowed; opacity: .55; }
+.none { color: var(--faint); font-family: var(--display); font-style: italic; font-size: 18px; }
+
+/* Winners */
+.goes { font-family: var(--engraved); font-size: 11px; letter-spacing: .26em; text-transform: uppercase; color: var(--faint); }
+.winner { margin: 0; font-family: var(--engraved); font-weight: 600; text-transform: uppercase; font-size: clamp(26px, 5vw, 40px); line-height: 1.1; letter-spacing: .04em; overflow-wrap: anywhere; }
+.votes-line { color: var(--muted); font-size: 14px; }
+.runners { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; color: var(--faint); font-size: 14px; }
+.card.revealed { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(201,164,92,.35), 0 18px 60px -24px rgba(201,164,92,.6); }
+.card.revealed .cat-no { color: var(--gold); }
+.reveal-in { display: grid; gap: 8px; justify-items: center; animation: rise .6s ease-out both; }
+@keyframes rise { from { opacity: .2; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+
+button.primary, button.ghost {
+  font-family: var(--engraved); font-weight: 600; font-size: 13px; letter-spacing: .2em; text-transform: uppercase;
+  cursor: pointer; padding: 13px 26px; min-height: 46px;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+button.primary { border: 1px solid var(--gold-hi); background: linear-gradient(180deg, var(--gold-hi), var(--gold) 60%, var(--gold-lo)); color: var(--on-gold); }
+button.primary:hover { filter: brightness(1.08); }
+button.ghost { border: 1px solid var(--gold-lo); background: transparent; color: var(--gold-hi); }
+button.ghost:hover { background: var(--gold-wash); }
+button.ghost.on { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
+button.ghost.arm { border-color: var(--warn); color: var(--warn); }
+button.primary:focus-visible, button.ghost:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 3px; }
+button.primary:disabled, button.ghost:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  background: rgba(10,9,8,.94); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+  padding-block: 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.bar-in { max-width: 1120px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.status { color: var(--muted); font-size: 14px; min-width: 0; }
+.status.ok { color: var(--ok); }
+.status.err { color: var(--warn); }
+.count { font-family: var(--engraved); color: var(--gold-hi); font-variant-numeric: tabular-nums; }
+
+.board { display: grid; grid-template-columns: 1fr; gap: 0; max-width: 920px; width: 100%; justify-self: center; }
+.tally { display: grid; gap: 10px; justify-items: center; text-align: center; min-width: 0; padding-block: 18px; border-top: 1px solid var(--line); }
+.tally:first-child { border-top-color: var(--gold-lo); }
+.tally h3 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 21px; line-height: 1.15; }
+.tally ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; width: min(420px, 100%); }
+.tally li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; text-align: left; }
+.tally .who { font-weight: 500; overflow-wrap: anywhere; }
+.tally .n { font-family: var(--engraved); font-size: 13px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.tally .from { grid-column: 1 / -1; font-size: 13px; color: var(--faint); overflow-wrap: anywhere; }
+.tally .empty { color: var(--faint); font-family: var(--display); font-style: italic; font-size: 17px; }
+.board-empty { color: var(--muted); text-align: center; grid-column: 1 / -1; }
+
+.host-link { margin-top: 14px; background: none; border: 0; color: var(--faint); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; padding: 8px; }
+.host-link:hover { color: var(--gold); }
+footer { text-align: center; color: var(--faint); font-family: var(--engraved); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; }
+
+/* iPhone: every width from SE (375) through Pro Max (440); notch and Dynamic Island handled by safe-area insets */
+@media (max-width: 480px) {
+  .wrap { gap: 40px; padding-block: 32px 160px; }
+  header { gap: 14px; }
+  .edition { font-size: 11px; letter-spacing: .24em; padding-left: .24em; }
+  h1 { font-size: clamp(30px, 10.5vw, 46px); letter-spacing: .03em; }
+  h1 .the { font-size: .4em; }
+  .lede { font-size: 18px; }
+  .stages { flex-wrap: nowrap; }
+  .stage { font-size: 10px; letter-spacing: .14em; padding: 6px 9px; white-space: nowrap; }
+  .stage .rn { display: none; }
+  .grid { gap: 12px; }
+  .card { padding: 24px 18px 22px; gap: 14px; }
+  .card h3 { font-size: 24px; }
+  .opt { font-size: 20px; padding: 12px 40px; }
+  #me-name { font-size: 22px; }
+  .bar-in { flex-direction: column; align-items: stretch; text-align: center; gap: 10px; }
+  .bar button.primary { width: 100%; padding: 15px 20px; font-size: 14px; }
+  .host-btns { flex-direction: column; width: 100%; }
+  .host-btns button { width: 100%; }
+  .tally h3 { font-size: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="edition" id="edition">The Inaugural Ceremony · 2026</div>
+    <h1 class="gold-text"><span class="the">The</span>Best Friend Awards</h1>
+    <div class="rule" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 0 L8.6 5.4 L14 7 L8.6 8.6 L7 14 L5.4 8.6 L0 7 L5.4 5.4 Z" fill="currentColor"/></svg></div>
+    <p class="lede" id="lede">You are cordially invited to submit your nominations across twenty-two categories honoring the finest, and most questionable, among us.</p>
+    <div class="stages" aria-label="Ceremony stage">
+      <span class="stage" data-stage="nominate"><span class="rn">I · </span>Nominations</span>
+      <span class="stage" data-stage="vote"><span class="rn">II · </span>Final Vote</span>
+      <span class="stage" data-stage="results"><span class="rn">III · </span>Winners</span>
+    </div>
+  </header>
+
+  <div class="host" id="host" hidden>
+    <div class="lbl">Host controls · only the host sees this</div>
+    <p id="host-text">Move the ceremony to the next stage when everyone is in.</p>
+    <div class="host-btns">
+      <button class="ghost" type="button" data-go="nominate">Nominations</button>
+      <button class="ghost" type="button" data-go="vote">Final Vote</button>
+      <button class="ghost" type="button" data-go="results">Winners</button>
+    </div>
+  </div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="you" id="you">
+    <label class="lbl" for="me-name" id="me-label">Nominations submitted by</label>
+    <input type="text" id="me-name" maxlength="40" placeholder="Your name" autocomplete="name">
+  </div>
+
+  <!-- Act I: nominations -->
+  <section class="act" id="act-nominate">
+    <div class="sec-head">
+      <h2 class="gold-text">Official Ballot</h2>
+      <p>Name one nominee per category. Ballots may be amended until nominations close.</p>
+    </div>
+    <div class="grid" id="awards"></div>
+    <div class="sec-head">
+      <h2 class="gold-text">Nominations Received</h2>
+      <p id="board-sub">This board updates live as ballots arrive.</p>
+    </div>
+    <div class="board" id="board"><p class="board-empty">Loading nominations…</p></div>
+  </section>
+
+  <!-- Act II: final vote -->
+  <section class="act" id="act-vote" hidden>
+    <div class="sec-head">
+      <h2 class="gold-text">Final Ballot</h2>
+      <p>The top nominees from every ballot are your finalists. Pick one per category. You can change your votes until voting closes.</p>
+    </div>
+    <div class="grid" id="vote-grid"></div>
+  </section>
+
+  <!-- Act III: winners -->
+  <section class="act" id="act-results" hidden>
+    <div class="sec-head">
+      <h2 class="gold-text">And the Award Goes To</h2>
+      <p id="results-sub">Tap each envelope to reveal the winner.</p>
+      <button class="ghost" type="button" id="reveal-all">Reveal all winners</button>
+    </div>
+    <div class="grid" id="results-grid"></div>
+  </section>
+
+  <footer><div>The Best Friend Awards · 2026</div><button class="host-link" id="host-signin" type="button">Host sign in</button></footer>
+</div>
+
+<div class="bar" id="bar">
+  <div class="bar-in">
+    <div class="status" id="status" role="status"></div>
+    <button class="primary" id="save" type="button">Submit Ballot</button>
+  </div>
+</div>
+
+<script>
+const AWARDS = [
+  ["Side Quest Warrior Award", "You can never find them when you need them, but they're always somewhere doing some random shit."],
+  ["Red Flag Award", "You ignore every warning sign just to come crying to the group chat later."],
+  ["Funniest Moment Award", "The moment the group chat will never let die. You already know the one."],
+  ["Irish Goodbye Award", "Will disappear without telling a single soul and text you tomorrow like nothing happened."],
+  ["The Keep It a Buck Award", "Will tell you when you're wrong, when your fit is trash, and when you're embarrassing yourself. Never sugarcoats shit, but it's always love."],
+  ["Red Pill Award", "One Andrew Tate video later and now nobody can tell them shit."],
+  ["The Unemployed Friend Award", "Always free. Always down. Somehow always broke."],
+  ["Main Character Award", "Somehow makes everything about them and the crazy part is we let them. 😭"],
+  ["Most Independent Award", "Doesn't need nobody. Will go to the movies alone and have a better time than all of us."],
+  ["The Shared Brain Cell Award", "One makes a decision and the other one somehow already agrees. This duo is inseparable."],
+  ["Day One Award", "Stuck around before you became somebody and won't let you forget where you came from."],
+  ["The Glue Award", "Without them this group chat would've died years ago. Plans every link up and keeps us together."],
+  ["Most Loyal Award", "Would take a bullet for you and lie to your mom for you. Same energy."],
+  ["The Friend We'd All Go to War For Award", "If it ever goes down, this is who we're all running behind. No questions asked."],
+  ["Best Dressed Award", "Can't go nowhere without putting that shit ON."],
+  ["Best Creative Award", "Actually makes stuff. Art, music, edits, whatever it is, it's always got a vibe."],
+  ["Unc Award", "Back hurts, in bed by 9, still says lit. Unc status fr."],
+  ["Best Couple Award", "The couple that makes the rest of us feel extra single. Disgusting. We love it."],
+  ["The Kindest Soul Award", "Has a heart of gold and somehow still puts up with our bullshit."],
+  ["The Asshole Award", "No filter, no manners, and absolutely no remorse."],
+  ["Most Improved Friend Award", "You actually listened for once and look where it got you."],
+  ["MVP Award", "The real backbone of the group. Give them their flowers before they get tired of us."]
+].map(([name, desc]) => ({ name, desc, id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") }));
+
+const FINALISTS_PER_AWARD = 4;
+const $ = id => document.getElementById(id);
+const statusEl = $("status"), saveBtn = $("save"), nameIn = $("me-name");
+
+const S = {
+  phase: "nominate",     // nominate | vote | results
+  finalists: {},         // awardId -> [{key, label}]
+  nomDocs: [],
+  voteDocs: [],
+  myVote: {},            // awardId -> finalist key
+  revealed: new Set(),
+  db: null, uid: null, isOwner: false, readOnly: false, ready: false
+};
+
+const keyOf = s => s.trim().toLowerCase().replace(/\s+/g, " ");
+const strName = d => (typeof d.name === "string" && d.name.trim()) ? d.name.trim() : "Someone";
+
+function makeTitle(a, i) {
+  const t = document.createElement("div");
+  t.className = "title";
+  t.innerHTML = `<div class="cat-no">Category ${String(i + 1).padStart(2, "0")}</div><h3></h3><p class="desc"></p>`;
+  t.querySelector("h3").textContent = a.name;
+  t.querySelector(".desc").textContent = a.desc;
+  return t;
+}
+
+// ---------- Act I: nomination ballot ----------
+const nomGrid = $("awards");
+AWARDS.forEach((a, i) => {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.id = a.id;
+  card.appendChild(makeTitle(a, i));
+  const f = document.createElement("div");
+  f.className = "field";
+  f.innerHTML = `<label class="lbl" for="nom-${a.id}">Nominee</label><input type="text" id="nom-${a.id}" maxlength="40" placeholder="Name of nominee">`;
+  card.appendChild(f);
+  nomGrid.appendChild(card);
+});
+
+function nomFilled() {
+  let n = 0;
+  AWARDS.forEach(a => {
+    const v = $("nom-" + a.id).value.trim();
+    nomGrid.querySelector(`[data-id="${a.id}"]`).classList.toggle("filled", !!v);
+    if (v) n++;
+  });
+  return n;
+}
+function voteFilled() {
+  return AWARDS.filter(a => S.myVote[a.id]).length;
+}
+function idleStatus() {
+  statusEl.className = "status";
+  if (S.phase === "nominate") statusEl.innerHTML = `<span class="count">${nomFilled()}</span> of ${AWARDS.length} categories nominated`;
+  else if (S.phase === "vote") statusEl.innerHTML = `<span class="count">${voteFilled()}</span> of ${votableCount()} categories voted`;
+}
+nomGrid.addEventListener("input", () => idleStatus());
+nameIn.addEventListener("input", () => idleStatus());
+
+function setStatus(msg, kind) { statusEl.className = "status " + (kind || ""); statusEl.textContent = msg; }
+function showNotice(html) { const n = $("notice"); n.innerHTML = html; n.hidden = false; }
+
+function tally(docs, awardId) {
+  const groups = new Map();
+  docs.forEach(d => {
+    const p = d.picks && d.picks[awardId];
+    const nominee = p && typeof p.nominee === "string" ? p.nominee.trim() : "";
+    if (!nominee) return;
+    const k = keyOf(nominee);
+    if (!groups.has(k)) groups.set(k, { key: k, label: nominee, from: [] });
+    groups.get(k).from.push(strName(d));
+  });
+  return [...groups.values()].sort((x, y) => y.from.length - x.from.length || x.label.localeCompare(y.label));
+}
+
+function renderBoard() {
+  const board = $("board");
+  board.innerHTML = "";
+  const n = S.nomDocs.length;
+  $("board-sub").textContent = n ? `${n} ${n === 1 ? "ballot" : "ballots"} received. This board updates live.` : "This board updates live as ballots arrive.";
+  AWARDS.forEach(a => {
+    const groups = tally(S.nomDocs, a.id);
+    const box = document.createElement("div");
+    box.className = "tally";
+    const h = document.createElement("h3"); h.textContent = a.name; box.appendChild(h);
+    if (!groups.length) {
+      const e = document.createElement("div"); e.className = "empty"; e.textContent = "Awaiting nominations"; box.appendChild(e);
+    } else {
+      const ol = document.createElement("ol");
+      groups.forEach(g => {
+        const li = document.createElement("li");
+        const w = document.createElement("span"); w.className = "who"; w.textContent = g.label;
+        const c = document.createElement("span"); c.className = "n"; c.textContent = g.from.length + (g.from.length === 1 ? " nod" : " nods");
+        const f = document.createElement("span"); f.className = "from"; f.textContent = "Nominated by " + g.from.join(", ");
+        li.append(w, c, f); ol.appendChild(li);
+      });
+      box.appendChild(ol);
+    }
+    board.appendChild(box);
+  });
+}
+
+// ---------- Act II: final vote ----------
+function votableCount() { return AWARDS.filter(a => (S.finalists[a.id] || []).length).length; }
+
+function renderVote() {
+  const g = $("vote-grid");
+  g.innerHTML = "";
+  AWARDS.forEach((a, i) => {
+    const card = document.createElement("div");
+    card.className = "card" + (S.myVote[a.id] ? " filled" : "");
+    card.appendChild(makeTitle(a, i));
+    const fins = S.finalists[a.id] || [];
+    if (!fins.length) {
+      const none = document.createElement("div"); none.className = "none"; none.textContent = "No nominees this year";
+      card.appendChild(none);
+    } else {
+      const lbl = document.createElement("div"); lbl.className = "lbl"; lbl.textContent = "Finalists";
+      const opts = document.createElement("div"); opts.className = "options"; opts.setAttribute("role", "group"); opts.setAttribute("aria-label", a.name + " finalists");
+      fins.forEach(f => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "opt"; b.textContent = f.label;
+        b.setAttribute("aria-pressed", S.myVote[a.id] === f.key ? "true" : "false");
+        b.disabled = S.readOnly || !S.uid;
+        b.addEventListener("click", () => {
+          S.myVote[a.id] = S.myVote[a.id] === f.key ? undefined : f.key;
+          if (!S.myVote[a.id]) delete S.myVote[a.id];
+          opts.querySelectorAll(".opt").forEach(o => o.setAttribute("aria-pressed", "false"));
+          if (S.myVote[a.id]) b.setAttribute("aria-pressed", "true");
+          card.classList.toggle("filled", !!S.myVote[a.id]);
+          idleStatus();
+        });
+        opts.appendChild(b);
+      });
+      card.append(lbl, opts);
+    }
+    g.appendChild(card);
+  });
+}
+
+// ---------- Act III: winners ----------
+function results(awardId) {
+  const fins = S.finalists[awardId] || [];
+  const counts = new Map(fins.map(f => [f.key, { label: f.label, n: 0 }]));
+  S.voteDocs.forEach(d => {
+    const k = d.picks && d.picks[awardId];
+    if (typeof k === "string" && counts.has(k)) counts.get(k).n++;
+  });
+  return [...counts.values()].sort((x, y) => y.n - x.n || x.label.localeCompare(y.label));
+}
+
+function renderResults() {
+  const g = $("results-grid");
+  g.innerHTML = "";
+  const voters = S.voteDocs.length;
+  $("results-sub").textContent = voters
+    ? `${voters} ${voters === 1 ? "friend" : "friends"} voted. Tap each envelope to reveal the winner.`
+    : "No final votes were cast.";
+  AWARDS.forEach((a, i) => {
+    const card = document.createElement("div");
+    const open = S.revealed.has(a.id);
+    card.className = "card" + (open ? " revealed" : "");
+    card.appendChild(makeTitle(a, i));
+    const r = results(a.id);
+    const top = r.length ? r[0].n : 0;
+    if (!open) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ghost"; b.textContent = "Open the envelope";
+      b.addEventListener("click", () => { S.revealed.add(a.id); renderResults(); });
+      card.appendChild(b);
+    } else {
+      const box = document.createElement("div"); box.className = "reveal-in";
+      const goes = document.createElement("div"); goes.className = "goes"; goes.textContent = "And the award goes to";
+      const w = document.createElement("p"); w.className = "winner gold-text";
+      const line = document.createElement("div"); line.className = "votes-line";
+      if (!r.length) { w.textContent = "No nominees"; line.textContent = ""; }
+      else if (!top) { w.textContent = "No votes cast"; line.textContent = ""; }
+      else {
+        const winners = r.filter(x => x.n === top);
+        w.textContent = winners.map(x => x.label).join(" & ");
+        line.textContent = (winners.length > 1 ? "Tied with " : "") + top + (top === 1 ? " vote" : " votes") + (winners.length > 1 ? " each" : "");
+      }
+      box.append(goes, w);
+      if (line.textContent) box.appendChild(line);
+      const runners = r.filter(x => top && x.n < top);
+      if (runners.length) {
+        const ul = document.createElement("ul"); ul.className = "runners";
+        runners.forEach(x => { const li = document.createElement("li"); li.textContent = `${x.label} · ${x.n} ${x.n === 1 ? "vote" : "votes"}`; ul.appendChild(li); });
+        box.appendChild(ul);
+      }
+      card.appendChild(box);
+    }
+    g.appendChild(card);
+  });
+}
+$("reveal-all").addEventListener("click", () => { AWARDS.forEach(a => S.revealed.add(a.id)); renderResults(); });
+
+// ---------- Stage switching ----------
+const COPY = {
+  nominate: { edition: "Nominations Now Open", lede: "You are cordially invited to submit your nominations across twenty-two categories honoring the finest, and most questionable, among us.", label: "Nominations submitted by", btn: "Submit Ballot" },
+  vote: { edition: "Final Voting Now Open", lede: "The nominations are in. Cast one vote per category for the friend who truly deserves it.", label: "Votes cast by", btn: "Submit Votes" },
+  results: { edition: "The Winners · 2026", lede: "The votes have been counted. Ladies and gentlemen, your Best Friend Award winners.", label: "", btn: "" }
+};
+
+function render() {
+  const p = S.phase, c = COPY[p];
+  $("edition").textContent = c.edition;
+  $("lede").textContent = c.lede;
+  document.querySelectorAll(".stage").forEach(el => {
+    const order = ["nominate", "vote", "results"];
+    const i = order.indexOf(el.dataset.stage), cur = order.indexOf(p);
+    el.classList.toggle("on", i === cur); el.classList.toggle("done", i < cur);
+  });
+  $("act-nominate").hidden = p !== "nominate";
+  $("act-vote").hidden = p !== "vote";
+  $("act-results").hidden = p !== "results";
+  $("you").hidden = p === "results";
+  $("bar").hidden = p === "results";
+  $("me-label").textContent = c.label;
+  saveBtn.textContent = (p === "nominate" && hasMyNom) || (p === "vote" && hasMyVote) ? (p === "nominate" ? "Amend Ballot" : "Update Votes") : c.btn;
+  if (p === "nominate") renderBoard();
+  if (p === "vote") renderVote();
+  if (p === "results") renderResults();
+  if (S.isOwner) {
+    $("host").hidden = false;
+    document.querySelectorAll("[data-go]").forEach(b => { b.classList.toggle("on", b.dataset.go === p); b.classList.remove("arm"); b.textContent = HOST_LABEL[b.dataset.go]; });
+    $("host-text").textContent = {
+      nominate: `Nominations are open. ${S.nomDocs.length} ${S.nomDocs.length === 1 ? "ballot" : "ballots"} in so far. Opening the final vote takes the top ${FINALISTS_PER_AWARD} nominees in each category as finalists.`,
+      vote: `Final voting is open. ${S.voteDocs.length} ${S.voteDocs.length === 1 ? "friend has" : "friends have"} voted. Show the winners when everyone is in.`,
+      results: "Winners are showing for everyone. Each person opens the envelopes on their own screen."
+    }[p];
+  }
+  if (!S.readOnly && S.uid && !/\b(ok|err)\b/.test(statusEl.className)) idleStatus();
+}
+let hasMyNom = false, hasMyVote = false;
+
+// Host controls: tap twice to confirm
+const HOST_LABEL = { nominate: "Nominations", vote: "Final Vote", results: "Winners" };
+const HOST_CONFIRM = { nominate: "Tap again to reopen nominations", vote: "Tap again to open the final vote", results: "Tap again to show winners" };
+let armTimer = null;
+document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", async () => {
+  const go = b.dataset.go;
+  if (!S.db || go === S.phase) return;
+  if (!b.classList.contains("arm")) {
+    document.querySelectorAll("[data-go]").forEach(x => { x.classList.remove("arm"); x.textContent = HOST_LABEL[x.dataset.go]; });
+    b.classList.add("arm"); b.textContent = HOST_CONFIRM[go];
+    clearTimeout(armTimer); armTimer = setTimeout(() => { b.classList.remove("arm"); b.textContent = HOST_LABEL[go]; }, 4000);
+    return;
+  }
+  clearTimeout(armTimer);
+  let finalists = S.finalists;
+  if (go === "vote" && S.phase === "nominate") {
+    finalists = {};
+    AWARDS.forEach(a => { finalists[a.id] = tally(S.nomDocs, a.id).slice(0, FINALISTS_PER_AWARD).map(({ key, label }) => ({ key, label })); });
+  }
+  document.querySelectorAll("[data-go]").forEach(x => x.disabled = true);
+  try {
+    await S.db.doc("settings/ceremony").set({ phase: go, finalists, updatedAt: new Date().toISOString() });
+  } catch (e) {
+    setStatus("Couldn't change the stage. Try again.", "err");
+  } finally {
+    document.querySelectorAll("[data-go]").forEach(x => x.disabled = false);
+  }
+}));
+
+// ---------- Submit ----------
+saveBtn.addEventListener("click", async () => {
+  if (!S.db || !S.uid || S.readOnly) return;
+  const name = nameIn.value.trim();
+  if (!name) { setStatus("Add your name at the top so everyone knows who it's from.", "err"); nameIn.focus(); return; }
+  let path, body, count;
+  if (S.phase === "nominate") {
+    const picks = {};
+    AWARDS.forEach(a => { const v = $("nom-" + a.id).value.trim(); if (v) picks[a.id] = { nominee: v }; });
+    count = Object.keys(picks).length;
+    if (!count) { setStatus("Nominate someone in at least one category first.", "err"); return; }
+    path = "nominations/" + S.uid; body = { name, picks };
+  } else if (S.phase === "vote") {
+    const picks = {};
+    AWARDS.forEach(a => {
+      const k = S.myVote[a.id];
+      if (k && (S.finalists[a.id] || []).some(f => f.key === k)) picks[a.id] = k;
+    });
+    count = Object.keys(picks).length;
+    if (!count) { setStatus("Pick a finalist in at least one category first.", "err"); return; }
+    path = "votes/" + S.uid; body = { name, picks };
+  } else return;
+  saveBtn.disabled = true;
+  setStatus("Submitting…");
+  try {
+    await S.db.doc(path).set({ ...body, updatedAt: new Date().toISOString() });
+    if (S.phase === "nominate") { hasMyNom = true; saveBtn.textContent = "Amend Ballot"; setStatus(`Ballot submitted with ${count} nominations. You can amend it anytime.`, "ok"); }
+    else { hasMyVote = true; saveBtn.textContent = "Update Votes"; setStatus(`Votes submitted in ${count} categories. You can change them until voting closes.`, "ok"); }
+  } catch (e) {
+    if (e && e.code === "permission-denied") {
+      setStatus(S.phase === "nominate" ? "Nominations just closed. Reload to see the final vote." : "Voting just closed. Reload to see the winners.", "err");
+    } else {
+      setStatus("Couldn't submit just now. Check your connection and try again.", "err");
+    }
+  } finally {
+    if (!S.readOnly) saveBtn.disabled = false;
+  }
+});
+
+// ---------- Boot (Firebase) ----------
+render();
+const fb = firebase.initializeApp(window.FIREBASE_CONFIG);
+const auth = firebase.auth();
+S.db = firebase.firestore();
+let hostUid = null, unsubs = [];
+
+function refreshOwner() {
+  const u = auth.currentUser;
+  S.isOwner = !!(u && hostUid && u.uid === hostUid);
+  $("host").hidden = !S.isOwner;
+  $("host-signin").hidden = S.isOwner;
+  render();
+}
+
+$("host-signin").addEventListener("click", async () => {
+  try {
+    const cred = await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    const hostSnap = await S.db.doc("settings/host").get();
+    if (!hostSnap.exists) await S.db.doc("settings/host").set({ uid: cred.user.uid });
+    else if (hostSnap.data().uid !== cred.user.uid) {
+      showNotice("<strong>That account isn't the host.</strong> Only the host can change the ceremony stage.");
+    }
+  } catch (e) {
+    setStatus("Host sign in didn't finish. Try again.", "err");
+  }
+});
+
+async function loadMine() {
+  hasMyNom = false; hasMyVote = false; S.myVote = {};
+  try {
+    const [mine, myV] = await Promise.all([S.db.doc("nominations/" + S.uid).get(), S.db.doc("votes/" + S.uid).get()]);
+    if (mine.exists) {
+      const d = mine.data();
+      if (typeof d.name === "string") nameIn.value = d.name;
+      AWARDS.forEach(a => { const p = d.picks && d.picks[a.id]; if (p) $("nom-" + a.id).value = p.nominee || ""; });
+      hasMyNom = true;
+    }
+    if (myV.exists) {
+      const d = myV.data();
+      if (typeof d.name === "string" && !nameIn.value) nameIn.value = d.name;
+      if (d.picks) Object.entries(d.picks).forEach(([k, v]) => { if (typeof v === "string") S.myVote[k] = v; });
+      hasMyVote = true;
+    }
+  } catch (e) { /* first visit; form stays usable */ }
+  render();
+}
+
+let subscribed = false;
+function subscribe() {
+  if (subscribed) return;
+  subscribed = true;
+  const fail = () => setStatus("Lost connection to the ceremony. Reload the page.", "err");
+  S.db.doc("settings/ceremony").onSnapshot(snap => {
+    const d = snap.exists ? snap.data() : {};
+    S.phase = ["nominate", "vote", "results"].includes(d.phase) ? d.phase : "nominate";
+    S.finalists = d.finalists && typeof d.finalists === "object" ? d.finalists : {};
+    statusEl.className = "status";
+    render();
+  }, fail);
+  S.db.doc("settings/host").onSnapshot(snap => { hostUid = snap.exists ? snap.data().uid : null; refreshOwner(); }, fail);
+  S.db.collection("nominations").onSnapshot(snap => { S.nomDocs = snap.docs.map(d => d.data() || {}); if (S.phase === "nominate" || S.isOwner) render(); }, fail);
+  S.db.collection("votes").onSnapshot(snap => { S.voteDocs = snap.docs.map(d => d.data() || {}); if (S.phase === "results" || S.isOwner) render(); }, fail);
+}
+
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    try { await auth.signInAnonymously(); }
+    catch (e) {
+      document.querySelectorAll("input").forEach(i => i.disabled = true);
+      saveBtn.disabled = true;
+      showNotice("<strong>Couldn't connect.</strong> Check your connection and reload the page.");
+    }
+    return;
+  }
+  S.uid = user.uid;
+  document.querySelectorAll("input").forEach(i => i.disabled = false);
+  saveBtn.disabled = false;
+  subscribe();
+  refreshOwner();
+  await loadMine();
+});
+</script>
+</body>
+</html>
