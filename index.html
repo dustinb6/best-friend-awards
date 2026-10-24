@@ -717,8 +717,9 @@ function subscribe() {
     render();
   }, fail);
   S.db.doc("settings/host").onSnapshot(snap => { hostUid = snap.exists ? snap.data().uid : null; refreshOwner(); }, fail);
-  S.db.collection("nominations").onSnapshot(snap => { S.nomDocs = snap.docs.map(d => d.data() || {}); if (S.phase === "nominate" || S.isOwner) render(); }, fail);
-  S.db.collection("votes").onSnapshot(snap => { S.voteDocs = snap.docs.map(d => d.data() || {}); if (S.phase === "results" || S.isOwner) render(); }, fail);
+  const hasPicks = d => d && d.picks && typeof d.picks === "object" && Object.keys(d.picks).length > 0;
+  S.db.collection("nominations").onSnapshot(snap => { S.nomDocs = snap.docs.map(d => d.data() || {}).filter(hasPicks); if (S.phase === "nominate" || S.isOwner) render(); }, fail);
+  S.db.collection("votes").onSnapshot(snap => { S.voteDocs = snap.docs.map(d => d.data() || {}).filter(hasPicks); if (S.phase === "results" || S.isOwner) render(); }, fail);
 }
 
 auth.onAuthStateChanged(async user => {
