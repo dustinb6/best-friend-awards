@@ -301,11 +301,14 @@ footer { text-align: center; color: var(--faint); font-family: var(--engraved); 
       <p>Name one nominee per category. Ballots may be amended until nominations close.</p>
     </div>
     <div class="grid" id="awards"></div>
-    <div class="sec-head">
-      <h2 class="gold-text">Nominations Received</h2>
-      <p id="board-sub">This board updates live as ballots arrive.</p>
+    <div class="act" id="board-wrap" hidden>
+      <div class="sec-head">
+        <div class="lbl">Host only · nobody else can see this</div>
+        <h2 class="gold-text">Nominations Received</h2>
+        <p id="board-sub">This board updates live as ballots arrive.</p>
+      </div>
+      <div class="board" id="board"><p class="board-empty">Loading nominations…</p></div>
     </div>
-    <div class="board" id="board"><p class="board-empty">Loading nominations…</p></div>
   </section>
 
   <!-- Act II: final vote -->
@@ -673,13 +676,22 @@ render();
 const fb = firebase.initializeApp(window.FIREBASE_CONFIG);
 const auth = firebase.auth();
 S.db = firebase.firestore();
-let hostUid = null, unsubs = [];
+let hostUid = null, nomUnsub = null;
+const hasPicks = d => d && d.picks && typeof d.picks === "object" && Object.keys(d.picks).length > 0;
 
 function refreshOwner() {
   const u = auth.currentUser;
   S.isOwner = !!(u && hostUid && u.uid === hostUid);
   $("host").hidden = !S.isOwner;
   $("host-signin").hidden = S.isOwner;
+  $("board-wrap").hidden = !S.isOwner;
+  // Only the host may read everyone's ballots (enforced by the Firestore rules too).
+  if (S.isOwner && !nomUnsub) {
+    nomUnsub = S.db.collection("nominations").onSnapshot(snap => { S.nomDocs = snap.docs.map(d => d.data() || {}).filter(hasPicks); render(); },
+      () => setStatus("Couldn't load nominations. Reload the page.", "err"));
+  } else if (!S.isOwner && nomUnsub) {
+    nomUnsub(); nomUnsub = null; S.nomDocs = [];
+  }
   render();
 }
 
@@ -729,8 +741,6 @@ function subscribe() {
     render();
   }, fail);
   S.db.doc("settings/host").onSnapshot(snap => { hostUid = snap.exists ? snap.data().uid : null; refreshOwner(); }, fail);
-  const hasPicks = d => d && d.picks && typeof d.picks === "object" && Object.keys(d.picks).length > 0;
-  S.db.collection("nominations").onSnapshot(snap => { S.nomDocs = snap.docs.map(d => d.data() || {}).filter(hasPicks); if (S.phase === "nominate" || S.isOwner) render(); }, fail);
   S.db.collection("votes").onSnapshot(snap => { S.voteDocs = snap.docs.map(d => d.data() || {}).filter(hasPicks); if (S.phase === "results" || S.isOwner) render(); }, fail);
 }
 

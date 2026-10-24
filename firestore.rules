@@ -33,8 +33,9 @@ service cloud.firestore {
     }
 
     // One ballot per device: the document id must be the visitor's own id.
+    // Only the host can see everyone's nominations; each person can read back their own ballot.
     match /nominations/{uid} {
-      allow read: if true;
+      allow read: if isHost() || (signedIn() && request.auth.uid == uid);
       allow create, update: if signedIn() && request.auth.uid == uid && phaseIs('nominate') && validBallot();
       allow delete: if isHost();
     }
