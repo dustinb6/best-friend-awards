@@ -166,22 +166,51 @@ h2 {
 .field { display: grid; gap: 2px; width: min(380px, 100%); position: relative; }
 .field input { text-align: center; font-size: 18px; }
 
-/* Voting options */
-.options { display: grid; gap: 8px; width: min(400px, 100%); position: relative; }
+/* Voting options: nominee tiles with a blank photo slot (photos come later) */
+.options { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; width: min(560px, 100%); }
 .opt {
-  font-family: var(--display); font-size: 21px; font-weight: 600; color: var(--ink); cursor: pointer;
-  background: transparent; border: 1px solid var(--line); padding: 12px 44px; position: relative; text-align: center;
-  transition: border-color .15s, background .15s; min-height: 48px; overflow-wrap: anywhere;
+  font-family: var(--display); font-size: 19px; font-weight: 600; line-height: 1.15; color: var(--ink); cursor: pointer;
+  background: transparent; border: 1px solid var(--line); padding: 10px 10px 12px; position: relative; text-align: center;
+  display: flex; flex-direction: column; align-items: stretch; gap: 10px; min-width: 0; width: 100%; overflow-wrap: anywhere;
+  transition: border-color .15s, background .15s, transform .1s;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
+.opt .ph {
+  position: relative; display: block; width: 100%; height: 0; padding-bottom: 100%; flex: none;
+  border: 1px dashed var(--gold-lo); background: var(--panel); color: var(--line);
+}
+.opt .ph svg { position: absolute; left: 27%; top: 27%; width: 46%; height: 46%; }
 .opt:hover { border-color: var(--gold-lo); }
+.opt:active { transform: scale(.98); }
 .opt:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 2px; }
 .opt[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-wash); color: var(--gold-hi); }
+.opt[aria-pressed="true"] .ph { border-style: solid; border-color: var(--gold); color: var(--gold-lo); }
 .opt[aria-pressed="true"]::after {
-  content: ""; position: absolute; right: 16px; top: 50%; width: 8px; height: 14px; margin-top: -9px;
-  border: solid var(--gold-hi); border-width: 0 2px 2px 0; transform: rotate(45deg);
+  content: "\2713"; position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-family: var(--body); font-size: 15px; font-weight: 600;
+  background: var(--gold); color: var(--on-gold);
 }
 .opt:disabled { cursor: not-allowed; opacity: .55; }
+
+/* Category tabs on the final ballot */
+.tabs {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; background: rgba(10,9,8,.95);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border-block: 1px solid var(--line); padding-block: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tabs-in { display: flex; gap: 8px; width: max-content; margin: 0 auto; padding-inline: 4px; }
+.tab {
+  font-family: var(--engraved); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+  color: var(--muted); background: transparent; border: 1px solid var(--line); padding: 9px 12px; cursor: pointer; min-height: 38px;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.tab .no { color: var(--faint); margin-right: 6px; }
+.tab:hover { border-color: var(--gold-lo); color: var(--ink); }
+.tab:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 2px; }
+.tab.done { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
+.tab.done .no { color: var(--on-gold); opacity: .7; }
+.card[id^="vote-"] { scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 80px); }
 .none { color: var(--faint); font-family: var(--display); font-style: italic; font-size: 18px; }
 
 /* Winners */
@@ -252,7 +281,8 @@ footer { text-align: center; color: var(--faint); font-family: var(--engraved); 
   .grid { gap: 12px; }
   .card { padding: 24px 18px 22px; gap: 14px; }
   .card h3 { font-size: 24px; }
-  .opt { font-size: 20px; padding: 12px 40px; }
+  .options { gap: 10px; }
+  .opt { font-size: 18px; padding: 8px 8px 10px; }
   #me-name { font-size: 22px; }
   .bar-in { flex-direction: column; align-items: stretch; text-align: center; gap: 10px; }
   .bar button.primary { width: 100%; padding: 15px 20px; font-size: 14px; }
@@ -269,7 +299,7 @@ footer { text-align: center; color: var(--faint); font-family: var(--engraved); 
     <div class="edition" id="edition">The Inaugural Ceremony · 2026</div>
     <h1 class="gold-text"><span class="the">The</span>Best Friend Awards</h1>
     <div class="rule" aria-hidden="true"><svg viewBox="0 0 14 14"><path d="M7 0 L8.6 5.4 L14 7 L8.6 8.6 L7 14 L5.4 8.6 L0 7 L5.4 5.4 Z" fill="currentColor"/></svg></div>
-    <p class="lede" id="lede">You are cordially invited to submit your nominations across twenty-two categories honoring the finest, and most questionable, among us.</p>
+    <p class="lede" id="lede">You are cordially invited to submit your nominations across twenty-one categories honoring the finest, and most questionable, among us.</p>
     <div class="stages" aria-label="Ceremony stage">
       <span class="stage" data-stage="nominate"><span class="rn">I · </span>Nominations</span>
       <span class="stage" data-stage="vote"><span class="rn">II · </span>Final Vote</span>
@@ -315,8 +345,9 @@ footer { text-align: center; color: var(--faint); font-family: var(--engraved); 
   <section class="act" id="act-vote" hidden>
     <div class="sec-head">
       <h2 class="gold-text">Final Ballot</h2>
-      <p>The top nominees from every ballot are your finalists. Pick one per category. You can change your votes until voting closes.</p>
+      <p>Tap a category to jump to it, then tap a nominee to cast your vote. One vote per category. You can change your votes until voting closes.</p>
     </div>
+    <nav class="tabs" id="vote-tabs" aria-label="Categories"><div class="tabs-in" id="tabs-in"></div></nav>
     <div class="grid" id="vote-grid"></div>
   </section>
 
@@ -344,7 +375,6 @@ footer { text-align: center; color: var(--faint); font-family: var(--engraved); 
 const AWARDS = [
   ["Side Quest Warrior Award", "You can never find them when you need them, but they're always somewhere doing some random shit."],
   ["Red Flag Award", "You ignore every warning sign just to come crying to the group chat later."],
-  ["Funniest Moment Award", "The moment the group chat will never let die. You already know the one."],
   ["Irish Goodbye Award", "Will disappear without telling a single soul and text you tomorrow like nothing happened."],
   ["The Keep It a Buck Award", "Will tell you when you're wrong, when your fit is trash, and when you're embarrassing yourself. Never sugarcoats shit, but it's always love."],
   ["Red Pill Award", "One Andrew Tate video later and now nobody can tell them shit."],
@@ -367,6 +397,36 @@ const AWARDS = [
 ].map(([name, desc]) => ({ name, desc, id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") }));
 
 const FINALISTS_PER_AWARD = 4;
+// Final-vote nominees, chosen by the host (2026-10-30). Opening the final vote uses these.
+const FINAL_NOMINEES = {
+  "side-quest-warrior-award": ["Hendrix", "Scion", "Jai", "Maelee"],
+  "red-flag-award": ["Scion", "Rose"],
+  "irish-goodbye-award": ["Maelee", "Sunjay", "Jalenn"],
+  "the-keep-it-a-buck-award": ["Rose", "Angel", "Malcolm", "Hendrix"],
+  "red-pill-award": ["Kevin", "Dustin", "Scion"],
+  "the-unemployed-friend-award": ["Hendrix", "Andy", "Dustin", "Jai", "Maelee", "Scion"],
+  "main-character-award": ["Scion", "Dustin", "Justine"],
+  "most-independent-award": ["Jai", "Hendrix", "Kevin", "Antonio"],
+  "the-shared-brain-cell-award": ["Angel & Malcolm", "SDK", "Rose & Dustin"],
+  "day-one-award": ["Dustin", "Scion", "Antonio", "Kevin"],
+  "the-glue-award": ["Malcolm", "Dustin", "Scion", "Rose"],
+  "most-loyal-award": ["Dustin", "Andrea", "Antonio", "Malcolm"],
+  "the-friend-we-d-all-go-to-war-for-award": ["Malcolm", "Andrea", "Antonio"],
+  "best-dressed-award": ["Kevin", "Hendrix", "Ace", "Scion"],
+  "best-creative-award": ["Kevin", "Scion", "Antonio", "Jai"],
+  "unc-award": ["Dustin", "Ace", "Angel", "Hendrix", "Kevin"],
+  "best-couple-award": ["Kevin & Andrea"],
+  "the-kindest-soul-award": ["Maelee", "Justine", "Malcolm"],
+  "the-asshole-award": ["Kevin", "Jai", "Malcolm"],
+  "most-improved-friend-award": ["Kevin", "Hendrix", "Scion"],
+  "mvp-award": ["Dustin", "Rose", "Jai", "Malcolm"]
+};
+function finalNominees() {
+  const out = {};
+  AWARDS.forEach(a => { out[a.id] = (FINAL_NOMINEES[a.id] || []).map(label => ({ key: keyOf(label), label })); });
+  return out;
+}
+const PREVIEW_VOTE = /[?&]preview=vote\b/.test(location.search);
 const $ = id => document.getElementById(id);
 const statusEl = $("status"), saveBtn = $("save"), nameIn = $("me-name");
 
@@ -472,31 +532,55 @@ function renderBoard() {
 // ---------- Act II: final vote ----------
 function votableCount() { return AWARDS.filter(a => (S.finalists[a.id] || []).length).length; }
 
+const SILHOUETTE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.5 21c.9-4.6 4.3-7 8.5-7s7.6 2.4 8.5 7z" fill="currentColor"/></svg>';
+
+function renderTabs() {
+  const t = $("tabs-in");
+  t.innerHTML = "";
+  AWARDS.forEach((a, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tab" + (S.myVote[a.id] ? " done" : ""); b.dataset.id = a.id;
+    const no = document.createElement("span"); no.className = "no"; no.textContent = String(i + 1).padStart(2, "0");
+    b.append(no, document.createTextNode(a.name.replace(/^The /, "").replace(/ Award$/, "")));
+    b.addEventListener("click", () => {
+      const el = $("vote-" + a.id);
+      if (el) el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    });
+    t.appendChild(b);
+  });
+}
+
 function renderVote() {
   const g = $("vote-grid");
   g.innerHTML = "";
+  renderTabs();
   AWARDS.forEach((a, i) => {
     const card = document.createElement("div");
     card.className = "card" + (S.myVote[a.id] ? " filled" : "");
+    card.id = "vote-" + a.id;
     card.appendChild(makeTitle(a, i));
     const fins = S.finalists[a.id] || [];
     if (!fins.length) {
       const none = document.createElement("div"); none.className = "none"; none.textContent = "No nominees this year";
       card.appendChild(none);
     } else {
-      const lbl = document.createElement("div"); lbl.className = "lbl"; lbl.textContent = "Finalists";
-      const opts = document.createElement("div"); opts.className = "options"; opts.setAttribute("role", "group"); opts.setAttribute("aria-label", a.name + " finalists");
+      const lbl = document.createElement("div"); lbl.className = "lbl"; lbl.textContent = "Nominees";
+      const opts = document.createElement("div"); opts.className = "options"; opts.setAttribute("role", "group"); opts.setAttribute("aria-label", a.name + " nominees");
       fins.forEach(f => {
         const b = document.createElement("button");
-        b.type = "button"; b.className = "opt"; b.textContent = f.label;
+        b.type = "button"; b.className = "opt";
+        const ph = document.createElement("span"); ph.className = "ph"; ph.innerHTML = SILHOUETTE;
+        const nm = document.createElement("span"); nm.textContent = f.label;
+        b.append(ph, nm);
         b.setAttribute("aria-pressed", S.myVote[a.id] === f.key ? "true" : "false");
         b.disabled = S.readOnly || !S.uid;
         b.addEventListener("click", () => {
-          S.myVote[a.id] = S.myVote[a.id] === f.key ? undefined : f.key;
-          if (!S.myVote[a.id]) delete S.myVote[a.id];
+          if (S.myVote[a.id] === f.key) delete S.myVote[a.id]; else S.myVote[a.id] = f.key;
           opts.querySelectorAll(".opt").forEach(o => o.setAttribute("aria-pressed", "false"));
           if (S.myVote[a.id]) b.setAttribute("aria-pressed", "true");
           card.classList.toggle("filled", !!S.myVote[a.id]);
+          const tab = document.querySelector(`.tab[data-id="${a.id}"]`);
+          if (tab) tab.classList.toggle("done", !!S.myVote[a.id]);
           idleStatus();
         });
         opts.appendChild(b);
@@ -566,7 +650,7 @@ $("reveal-all").addEventListener("click", () => { AWARDS.forEach(a => S.revealed
 
 // ---------- Stage switching ----------
 const COPY = {
-  nominate: { edition: "Nominations Now Open", lede: "You are cordially invited to submit your nominations across twenty-two categories honoring the finest, and most questionable, among us.", label: "Nominations submitted by", btn: "Submit Ballot" },
+  nominate: { edition: "Nominations Now Open", lede: "You are cordially invited to submit your nominations across twenty-one categories honoring the finest, and most questionable, among us.", label: "Nominations submitted by", btn: "Submit Ballot" },
   vote: { edition: "Final Voting Now Open", lede: "The nominations are in. Cast one vote per category for the friend who truly deserves it.", label: "Votes cast by", btn: "Submit Votes" },
   results: { edition: "The Winners · 2026", lede: "The votes have been counted. Ladies and gentlemen, your Best Friend Award winners.", label: "", btn: "" }
 };
@@ -619,8 +703,7 @@ document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", 
   clearTimeout(armTimer);
   let finalists = S.finalists;
   if (go === "vote" && S.phase === "nominate") {
-    finalists = {};
-    AWARDS.forEach(a => { finalists[a.id] = tally(S.nomDocs, a.id).slice(0, FINALISTS_PER_AWARD).map(({ key, label }) => ({ key, label })); });
+    finalists = finalNominees();
   }
   document.querySelectorAll("[data-go]").forEach(x => x.disabled = true);
   try {
@@ -634,6 +717,7 @@ document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", 
 
 // ---------- Submit ----------
 saveBtn.addEventListener("click", async () => {
+  if (S.preview) { setStatus("Preview only. Votes count once the host opens the final vote.", "err"); return; }
   if (!S.db || !S.uid || S.readOnly) return;
   const name = nameIn.value.trim();
   if (!name) { setStatus("Add your name at the top so everyone knows who it's from.", "err"); nameIn.focus(); return; }
@@ -737,6 +821,7 @@ function subscribe() {
     const d = snap.exists ? snap.data() : {};
     S.phase = ["nominate", "vote", "results"].includes(d.phase) ? d.phase : "nominate";
     S.finalists = d.finalists && typeof d.finalists === "object" ? d.finalists : {};
+    if (PREVIEW_VOTE && S.phase === "nominate") { S.phase = "vote"; S.finalists = finalNominees(); S.preview = true; }
     statusEl.className = "status";
     render();
   }, fail);
