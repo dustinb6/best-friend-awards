@@ -353,6 +353,14 @@ footer { text-align: center; color: var(--faint); font-family: var(--engraved); 
     </div>
     <nav class="tabs" id="vote-tabs" aria-label="Categories"><div class="tabs-in" id="tabs-in"></div></nav>
     <div class="grid" id="vote-grid"></div>
+    <div class="act" id="lead-wrap" hidden>
+      <div class="sec-head">
+        <div class="lbl">Host only · nobody else can see this</div>
+        <h2 class="gold-text">Live Leaderboard</h2>
+        <p id="lead-sub">This board updates live as votes come in.</p>
+      </div>
+      <div class="board" id="lead"></div>
+    </div>
   </section>
 
   <!-- Act III: winners -->
@@ -554,6 +562,33 @@ function renderBoard() {
   });
 }
 
+function renderLead() {
+  const board = $("lead");
+  board.innerHTML = "";
+  const n = S.voteDocs.length;
+  $("lead-sub").textContent = n ? `${n} ${n === 1 ? "friend has" : "friends have"} voted. This board updates live.` : "This board updates live as votes come in.";
+  AWARDS.forEach(a => {
+    const fins = S.finalists[a.id] || [];
+    if (!fins.length) return;
+    const rows = fins.map(f => ({ label: f.label, from: S.voteDocs.filter(d => d.picks && d.picks[a.id] === f.key).map(strName) }))
+      .sort((x, y) => y.from.length - x.from.length || x.label.localeCompare(y.label));
+    const top = rows[0].from.length;
+    const box = document.createElement("div"); box.className = "tally";
+    const h = document.createElement("h3"); h.textContent = a.name; box.appendChild(h);
+    const ol = document.createElement("ol");
+    rows.forEach(r => {
+      const li = document.createElement("li");
+      const w = document.createElement("span"); w.className = "who"; w.textContent = (top && r.from.length === top ? "★ " : "") + r.label;
+      const c = document.createElement("span"); c.className = "n"; c.textContent = r.from.length + (r.from.length === 1 ? " vote" : " votes");
+      li.append(w, c);
+      if (r.from.length) { const f = document.createElement("span"); f.className = "from"; f.textContent = "Voted by " + r.from.join(", "); li.appendChild(f); }
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+    board.appendChild(box);
+  });
+}
+
 // ---------- Act II: final vote ----------
 function votableCount() { return AWARDS.filter(a => (S.finalists[a.id] || []).length).length; }
 
@@ -704,12 +739,14 @@ function render() {
   saveBtn.textContent = (p === "nominate" && hasMyNom) || (p === "vote" && hasMyVote) ? (p === "nominate" ? "Amend Ballot" : "Update Votes") : c.btn;
   if (p === "nominate") renderBoard();
   if (p === "vote") renderVote();
+  $("lead-wrap").hidden = !(p === "vote" && S.isOwner);
+  if (p === "vote" && S.isOwner) renderLead();
   if (p === "results") renderResults();
   if (S.isOwner) {
     $("host").hidden = false;
     document.querySelectorAll("[data-go]").forEach(b => { b.classList.toggle("on", b.dataset.go === p); b.classList.remove("arm"); b.textContent = HOST_LABEL[b.dataset.go]; });
     $("host-text").textContent = {
-      nominate: `Nominations are open. ${S.nomDocs.length} ${S.nomDocs.length === 1 ? "ballot" : "ballots"} in so far. Opening the final vote takes the top ${FINALISTS_PER_AWARD} nominees in each category as finalists.`,
+      nominate: `Nominations are open. ${S.nomDocs.length} ${S.nomDocs.length === 1 ? "ballot" : "ballots"} in so far. Opening the final vote uses your final nominee list with photos.`,
       vote: `Final voting is open. ${S.voteDocs.length} ${S.voteDocs.length === 1 ? "friend has" : "friends have"} voted. Show the winners when everyone is in.`,
       results: "Winners are showing for everyone. Each person opens the envelopes on their own screen."
     }[p];
