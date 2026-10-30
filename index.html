@@ -181,6 +181,8 @@ h2 {
   border: 1px dashed var(--gold-lo); background: var(--panel); color: var(--line);
 }
 .opt .ph svg { position: absolute; left: 27%; top: 27%; width: 46%; height: 46%; }
+.opt .ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.opt .ph.has-photo { border-style: solid; border-color: var(--line); }
 .opt:hover { border-color: var(--gold-lo); }
 .opt:active { transform: scale(.98); }
 .opt:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 2px; }
@@ -428,6 +430,10 @@ function finalNominees() {
   AWARDS.forEach(a => { out[a.id] = (FINAL_NOMINEES[a.id] || []).map(label => ({ key: keyOf(label), label })); });
   return out;
 }
+// Nominee photos for the final ballot, keyed by name (lowercase). Names without a photo show a blank slot.
+const PHOTOS = {
+  "scion": "photos/scion.jpg"
+};
 const PREVIEW_VOTE = /[?&]preview=vote\b/.test(location.search);
 const $ = id => document.getElementById(id);
 const statusEl = $("status"), saveBtn = $("save"), nameIn = $("me-name");
@@ -571,7 +577,13 @@ function renderVote() {
       fins.forEach(f => {
         const b = document.createElement("button");
         b.type = "button"; b.className = "opt";
-        const ph = document.createElement("span"); ph.className = "ph"; ph.innerHTML = SILHOUETTE;
+        const ph = document.createElement("span"); ph.className = "ph";
+        const photo = PHOTOS[f.key];
+        if (photo) {
+          const img = document.createElement("img");
+          img.src = photo; img.alt = ""; img.loading = "lazy"; img.decoding = "async";
+          ph.classList.add("has-photo"); ph.appendChild(img);
+        } else ph.innerHTML = SILHOUETTE;
         const nm = document.createElement("span"); nm.textContent = f.label;
         b.append(ph, nm);
         b.setAttribute("aria-pressed", S.myVote[a.id] === f.key ? "true" : "false");
